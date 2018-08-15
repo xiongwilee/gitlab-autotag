@@ -53,7 +53,7 @@ MR合并提示
 
 ### 2、添加gitlab的webhook（需至少master权限）
 
-访问：https://git.qu{group名称}nqi.com/${group}/${repo_name}/settings/integrations 。**注意：这里需要当前登录用户的在该repo下的master权限**。
+访问：https://{gitlab地址}/${group}/${repo_name}/settings/integrations 。**注意：这里需要当前登录用户的在该repo下的master权限**。
 
 需填写：
 - URL: `http://${部署机器的IP}:2999` ，直接配置为这个地址即可；
