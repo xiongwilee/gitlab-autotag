@@ -1,0 +1,10 @@
+{
+  "apps": [{
+    "script": "server.js",
+    "instances" : "1",
+    "error_file": "../log/auto-tag.error.log",
+    "out_file": "../log/auto-tag.access.log",
+    "log_date_format": "YYYY-MM-DD HH:mm:ss Z",
+    "kill_timeout" : 5000
+  }]
+}
