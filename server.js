@@ -29,12 +29,12 @@ function createServer() {
       console.log(data);
 
       try {
-        init(req, JSON.parse(data))
+        const result = init(req, JSON.parse(data));
+        res.write(JSON.stringify(result));
       } catch (err) {
         console.error(err)
       }
 
-      res.write('{}');
       res.end();
     });
 
@@ -55,9 +55,13 @@ function init(req, data) {
   const cfg = getConfig(data, config);
 
   // 如果token与gitlab中不匹配，则返回
-  if (req.headers['x-gitlab-token'] !== cfg.gitlabToken) return;
+  if (req.headers['x-gitlab-token'] !== cfg.gitlabToken) {
+    return { code: 403 , message: 'Check Gitlab Token Error!'};
+  }
   // 如果当前不是mergerequest则直接返回
-  if (!isMergedRequest(data, cfg)) return;
+  if (!isMergedRequest(data, cfg)) {
+    return { code: 201 , message: 'Check Merge Request Status Error!'};
+  }
 
   // 获取时间字符串
   cfg.stamp = moment(new Date()).format(cfg.tagReg);
@@ -69,6 +73,8 @@ function init(req, data) {
   if (cfg.dingtalkToken) {
     sendMsg(data, cfg);
   }
+
+  return { code: 200, message: '' }
 
   /**
    * 判断当前的事件是否为merge request
@@ -152,7 +158,7 @@ function sendMsg(data, cfg) {
           `> 上线Tag: **online_${stamp}**\n\n` +
           `> 开发人员: ${author.name}\n\n` +
           `> 合并人员: ${assignee.name || assignee.username || author.name}\n\n` +
-          `> PR详情: [view merge request](${obj_attr.url})`
+          `> MR详情: [view merge request](${obj_attr.url})`
       }
     }
 
