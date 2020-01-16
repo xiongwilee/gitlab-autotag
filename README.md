@@ -30,23 +30,23 @@ MR合并提示
 ```
 // '{group名称}' 为group名称，再如：https://{gitlab地址}/{项目名称} 下的代码,则为'{项目名称}'
 '{group名称}': {
-
-    // workspace 为仓储的目录，后缀建议为：`${group的名称}-tags`，如{项目名称}则为：workspacePath + '{项目名称}-tags',
-    workspace: workspacePath + '{group名称}-tags',
-
-    // remote为远程仓储地址，包含group名称，如{项目名称}则为：'git@{gitlab地址}:{项目名称}/'
-    remote: 'git@{gitlab地址}:{group名称}/',
-
-    // 主干分支名称，例如后端的分支名称一般为online
-    master: 'master',
-
-    // tag的时间戳的要求，例如后端一般直到分钟，则可以配置为：'YYYYMMDDHHmm'
-    tagReg: 'YYYYMMDDHHmmss',
-
-    // gitlab下的token，用以在gitlab中关联token，可以自定义，推荐使用'{gitlabToken}'即可
+    // 代码操作目录
+    workspace: `${workspacePath}{group名称}-tags`,
+    // 远程地址
+    remote: '{gitlab地址}:{group名称}/',
+    // 主分支
+    master: 'online',
+    // 获取tagName的方法，可直接使用cmd命令，例如exec(`shell command`)
+    getTagName(hook_data, project_path) {
+      return `online_${moment(new Date()).format('YYYYMMDDHHmmss')}`;
+    },
+    // 获取tag message的方法，可直接使用cmd命令，例如exec(`shell command`)
+    getTagMsg(hook_data, project_path) {
+      return false;
+    },
+    // GitlabToekn，自定义即可
     gitlabToken: '{gitlabToken}',
-
-    // 钉钉推送消息的token，即钉钉机器人的token；
+    // 钉钉机器人的token
     dingtalkToken: '{钉钉机器人的token}'
 }
 ```

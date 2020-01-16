@@ -2,12 +2,7 @@
 
 require('shelljs/global');
 
-const fs = require('fs');
 const http = require('http');
-const url_opera = require('url');
-const moment = require('moment');
-
-const query_opera = require('querystring');
 const config = require('./config');
 
 createServer();
@@ -17,7 +12,7 @@ createServer();
  * @return undefined
  */
 function createServer() {
-  http.createServer(function(req, res) {
+  http.createServer(function (req, res) {
     let data = '';
 
     req.setEncoding('utf-8');
@@ -56,22 +51,19 @@ function init(req, data) {
 
   // 如果token与gitlab中不匹配，则返回
   if (req.headers['x-gitlab-token'] !== cfg.gitlabToken) {
-    return { code: 403 , message: 'Check Gitlab Token Error!'};
+    return { code: 403, message: 'Check Gitlab Token Error!' };
   }
   // 如果当前不是mergerequest则直接返回
   if (!isMergedRequest(data, cfg)) {
-    return { code: 201 , message: 'Check Merge Request Status Error!'};
+    return { code: 201, message: 'Check Merge Request Status Error!' };
   }
 
-  // 获取时间字符串
-  cfg.stamp = moment(new Date()).format(cfg.tagReg);
-
   // 创建tag
-  createTag(data, cfg);
+  const tagName = createTag(data, cfg);
 
   // 推送钉钉消息
   if (cfg.dingtalkToken) {
-    sendMsg(data, cfg);
+    sendMsg(data, cfg, tagName);
   }
 
   return { code: 200, message: '' }
@@ -111,9 +103,9 @@ function getConfig(data, config) {
  * @param  {Object} data  响应数据
  * @return
  */
-function sendMsg(data, cfg) {
+function sendMsg(data, cfg, tagName) {
   // 获取文案
-  const text = getArgs(data, cfg);
+  const text = getArgs(data, cfg, tagName);
 
   // 推送钉钉消息
   sendDingtalkMessage(text, cfg);
@@ -138,14 +130,11 @@ function sendMsg(data, cfg) {
    * @param  {Object} data  [description]
    * @return {String}       [description]
    */
-  function getArgs(data, cfg) {
-    const stamp = cfg.stamp;
+  function getArgs(data, cfg, tagName) {
     const obj_attr = data.object_attributes || {};
     const assignee = data.assignee || {};
     const last_commit = obj_attr.last_commit || {};
     const author = last_commit.author || {};
-    const user = data.user || {};
-
     const resultData = {
       msgtype: 'markdown',
       markdown: {
@@ -155,7 +144,7 @@ function sendMsg(data, cfg) {
           `> MR仓储: ${data.project.name}\n\n` +
           `> 上线信息: ${obj_attr.title}\n\n` +
           `> 合并分支: ${obj_attr.source_branch}\n\n` +
-          `> 上线Tag: **online_${stamp}**\n\n` +
+          `> 上线Tag: **${tagName}**\n\n` +
           `> 开发人员: ${author.name}\n\n` +
           `> 合并人员: ${assignee.name || assignee.username || author.name}\n\n` +
           `> MR详情: [view merge request](${obj_attr.url})`
@@ -181,8 +170,6 @@ function createTag(data, cfg) {
   const project_path = `${workspace}/${repo}`;
   // 远程主干
   const master = cfg.master;
-  // 格式化时间戳
-  const stamp = cfg.stamp;
 
   if (!test('-d', workspace)) {
     exec(`mkdir ${workspace}`);
@@ -192,16 +179,20 @@ function createTag(data, cfg) {
     exec(`git clone -b ${master} ${remote}${repo}.git ${repo}`, { cwd: `${workspace}` });
   }
 
-  // 使用git pull , 如果提交的版本低于online版本则pull不会生效（如：A分支reset后重新提MR），升级为fetch之后reset
-  // exec(`git pull origin ${master}`, { cwd: `${project_path}` });
-  
   exec(`git fetch`, { cwd: `${project_path}` });
-  // git checkout -B 在vipx-jenkins机器上不好使，先放弃该方案
-  // exec(`git checkout -B ${master} origin/${master}`, { cwd: `${project_path}` });
   exec(`git clean -df`, { cwd: `${project_path}` });
   exec(`git checkout ${master}`, { cwd: `${project_path}` });
   exec(`git pull origin ${master}`, { cwd: `${project_path}` });
-  
-  exec(`git tag online_${stamp}`, { cwd: `${project_path}` });
-  exec(`git push origin online_${stamp}`, { cwd: `${project_path}` });
+
+  // 获取tag名称
+  const tagName = cfg.getTagName.call(cfg, data, project_path);
+  const tagMsg = cfg.getTagMsg.call(cfg, data, project_path);
+
+  let tagCmd = `git tag -a ${tagName}`;
+  if (tagMsg) tagCmd += ' -m ${tagMsg}';
+
+  exec(tagCmd, { cwd: `${project_path}` });
+  exec(`git push origin ${tagName}`, { cwd: `${project_path}` });
+
+  return { tagName, tagMsg };
 }
